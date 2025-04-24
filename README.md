@@ -61,6 +61,37 @@ src/
 - **DELETE** `/products/{id}`
 - **Respuesta**: `204 No Content`
 
+### Suscribirse a Actualizaciones de Productos
+- **GET** `/products/subscribe`
+- **Descripción**: Permite a los clientes suscribirse a actualizaciones de productos en tiempo real mediante Server-Sent Events (SSE).
+- **Respuesta**: `200 OK`
+
+### Publicar una Actualización de Producto
+- **POST** `/products/update`
+- **Body**:
+  ```json
+  {
+    "id": "1",
+    "name": "Producto Actualizado",
+    "price": 15.0
+  }
+  ```
+- **Descripción**: Publica una actualización de producto para notificar a los suscriptores.
+- **Respuesta**: `200 OK`
+
+### Manejo de Errores en Servicios de Suscripciones
+
+Los servicios de suscripciones y publicación de actualizaciones implementan un manejo de errores robusto para garantizar la estabilidad de la aplicación:
+
+- **Suscribirse a Actualizaciones de Productos**:
+  - Si ocurre un error durante la emisión de actualizaciones, este se registra en los logs.
+  - Se proporciona un flujo alternativo vacío (`Flux.empty()`) como fallback para evitar interrupciones en los suscriptores.
+
+- **Publicar una Actualización de Producto**:
+  - Si no se puede emitir una actualización, el error se registra en los logs para facilitar la depuración.
+
+Estos mecanismos aseguran que los errores no afecten negativamente la experiencia del usuario y que la aplicación pueda continuar funcionando de manera estable.
+
 ## Pruebas
 
 ### Pruebas Unitarias
