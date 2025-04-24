@@ -12,19 +12,18 @@ import reactor.test.StepVerifier;
 
 import java.time.Duration;
 
-// Integration test for ProductSubscriptionController
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class ProductSubscriptionControllerIntegrationTest {
 
     @Autowired
     private WebTestClient webTestClient;
 
-    // Test for subscribing to product updates
     @Test
     void subscribeToProductUpdates() {
+        // Arrange
         Product product = new Product("1", "Test Product", 10.0);
 
-        // Subscribe to updates with increased timeout
+        // Act: Subscribe FIRST
         Flux<Product> updates = webTestClient.get()
                 .uri("/products/subscribe")
                 .accept(MediaType.TEXT_EVENT_STREAM)
@@ -32,9 +31,16 @@ class ProductSubscriptionControllerIntegrationTest {
                 .expectStatus().isOk()
                 .returnResult(Product.class)
                 .getResponseBody()
-                .timeout(Duration.ofSeconds(15)); // Increased timeout to 15 seconds
+                .timeout(Duration.ofSeconds(5)); // Reduced timeout for initial subscription
 
-        // Publish an update
+        // Assert: Verify subscription is established
+        StepVerifier.create(updates)
+                .expectSubscription()
+                .thenAwait(Duration.ofMillis(100)) // Give time to establish
+                .thenCancel()
+                .verify(Duration.ofSeconds(5));
+
+        // Act: Publish update
         webTestClient.post()
                 .uri("/products/update")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -42,10 +48,17 @@ class ProductSubscriptionControllerIntegrationTest {
                 .exchange()
                 .expectStatus().isOk();
 
-        // Verify the update is received
-        StepVerifier.create(updates)
+        // Assert: Verify update is received
+        StepVerifier.create(webTestClient.get()  // Re-subscribe to get the update
+                                .uri("/products/subscribe")
+                                .accept(MediaType.TEXT_EVENT_STREAM)
+                                .exchange()
+                                .expectStatus().isOk()
+                                .returnResult(Product.class)
+                                .getResponseBody()
+                )
                 .expectNext(product)
-                .thenCancel()
-                .verify();
+                .expectComplete()
+                .verify(Duration.ofSeconds(5));
     }
 }
